@@ -4,11 +4,14 @@ import math as math
 import networkx as nx
 import operator 
 from utils import strength, rand_top_wight
+from tqdm import tqdm
+from utils import edge_constr_dynamic
 
 class Segmentation_temporal: 
     
     def __init__(self,W):
-        self.W = W.copy()
+        self.W_original = W.copy()
+        self.W = W
         self.dense = dict()
         self.tot = dict()
         self.randtot =dict()
@@ -112,3 +115,127 @@ class Segmentation_temporal:
                 else:
                     break
 
+    def assemble(self,thresh):
+        Dense = []
+        ND = []
+        if self.dense == None: 
+            self.D = []
+            self.ND = list(self.W_original.nodes())
+        else : 
+            for i in self.dense.keys():
+                if self.Qality[i]> thresh : 
+                    Dense += list(self.dense[i].nodes())
+            self.D = Dense
+            self.ND = list(set(self.W_original.nodes())-set(Dense))
+    
+
+
+class Temporal_vectors:
+
+    def __init__(self,T_d,day_0,largeur):
+        self.slide = largeur
+        G_t=dict()
+        t_max=max(T_d)
+        t1=0
+        t2=largeur
+        while t2<=t_max:
+            G=nx.Graph()
+            edge_list=[(edge[1],edge[2]) for edge in day_0 if t2>edge[0]>=t1]
+            G.add_edges_from(edge_list)
+            G_t[t1]=G
+            t1+=largeur
+            t2+=largeur
+
+        G=nx.Graph()
+        edge_list=[(edge[1],edge[2]) for edge in day_0 if t_max>=edge[0]>=t1]
+        G.add_edges_from(edge_list)
+        G_t[t1]=G
+        self.G_t = G_t
+
+    def get_Itrich_class_vecs(self,T_uv,classe,thresh,wid,Nrep,seed):
+        
+        RC_t=dict()
+        D_t=dict()
+        ND_t=dict()
+        W_t=dict()
+        thresh=0.
+
+        for t in tqdm(self.G_t):
+            t2=t+self.slide
+            W=edge_constr_dynamic(T_uv,t,t2)
+            segmente_temp=Segmentation_temporal(W)
+            segmente_temp.process(seed,wid,Nrep)
+            segmente_temp.assemble(thresh)
+
+            W_t[t] = W
+            D_t[t] = segmente_temp.D
+            ND_t[t] = segmente_temp.ND
+            if segmente_temp.dense == None :  
+                RC_t[t] = dict()
+            else : 
+                RC_t[t] = {i : list(segmente_temp.dense[i].nodes()) for i in segmente_temp.dense}
+        
+        Itrich_node_record_temp=dict()
+        for node in classe:
+            Itrich_node_record_temp[node]=dict()
+            for t in self.G_t:
+                if node in D_t[t]:
+                    Itrich_node_record_temp[node][t]=1
+                elif node in ND_t[t]:
+                    Itrich_node_record_temp[node][t]=0
+                else : 
+                    Itrich_node_record_temp[node][t]=-1      
+        return Itrich_node_record_temp
+
+    def get_degree_vecs(self,classe):
+
+        Degree_node_record_temp = dict()
+        for node in tqdm(classe):
+            Degree_node_record_temp[node] = dict()
+            for t in self.G_t:
+                G = self.G_t[t]
+                if node in G:
+                    Degree_node_record_temp[node][t] = G.degree(node)
+                else : 
+                    Degree_node_record_temp[node][t] = 0
+        return Degree_node_record_temp
+  
+    def get_core_class_vecs(self,classe,k_thresh):
+        Core_node_record_temp = dict()
+        for node in tqdm(classe):
+            Core_node_record_temp[node] = dict()
+            for t in self.G_t:
+                G = self.G_t[t]
+                core_num =  nx.core_number(G)
+                if node in G:
+                    if core_num[node] > k_thresh:
+                        Core_node_record_temp[node][t] = 1
+                    else : 
+                        Core_node_record_temp[node][t] = 0
+                else : 
+                    Core_node_record_temp[node][t] = -1
+        return Core_node_record_temp
+
+    def get_core_number_vecs(self,classe):
+        Core_node_number_temp = dict()
+        for node in tqdm(classe):
+            Core_node_number_temp[node] = dict()
+            for t in self.G_t:
+                G = self.G_t[t]
+                core_num =  nx.core_number(G)
+                if node in G:
+                        Core_node_number_temp[node][t] = core_num[node]
+                else : 
+                    Core_node_number_temp[node][t] = 0
+        return Core_node_number_temp
+
+    def get_count(self,Itrich_node_record_temp,snap_to_window,E_t):
+        D_count=dict()
+        ND_count=dict()
+        presents = dict()
+        for t in E_t:
+            presents[t] = list(set([u for u,v in E_t[t]]+[v for u,v in E_t[t]]))
+        for node in Itrich_classe_vects.keys():
+            D_count[node] = [Itrich_node_record_temp[node][snap_to_window[t]] if node in presents[t] else -1 for t in E_t].count(1)
+            ND_count[node] =[Itrich_node_record_temp[node][snap_to_window[t]] if node in presents[t] else -1 for t in E_t].count(0)
+        return {"Dense": D_count, "ND" : ND_count }
