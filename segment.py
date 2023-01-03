@@ -159,7 +159,7 @@ class Temporal_vectors:
         ND_t=dict()
         W_t=dict()
         thresh=0.
-
+        print("Running Itrich")
         for t in tqdm(self.G_t):
             t2=t+self.slide
             W=edge_constr_dynamic(T_uv,t,t2)
@@ -190,6 +190,7 @@ class Temporal_vectors:
     def get_degree_vecs(self,classe):
 
         Degree_node_record_temp = dict()
+        print("Running Degree calculation")
         for node in tqdm(classe):
             Degree_node_record_temp[node] = dict()
             for t in self.G_t:
@@ -202,6 +203,7 @@ class Temporal_vectors:
   
     def get_core_class_vecs(self,classe,k_thresh):
         Core_node_record_temp = dict()
+        print("Running K-core class calculation")
         for node in tqdm(classe):
             Core_node_record_temp[node] = dict()
             for t in self.G_t:
@@ -218,6 +220,7 @@ class Temporal_vectors:
 
     def get_core_number_vecs(self,classe):
         Core_node_number_temp = dict()
+        print("Running K-core number calculation")
         for node in tqdm(classe):
             Core_node_number_temp[node] = dict()
             for t in self.G_t:

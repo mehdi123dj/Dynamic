@@ -1,63 +1,29 @@
 import numpy as np
-import scipy as sc 
 import random as random
-import math as math
-import networkx as nx
-from utils import duree, edge_constr_dynamic, edge_constr
-from segment import Segmentation_temporal, Temporal_vectors
+from segment import Temporal_vectors
 import os 
 import pickle 
 from tqdm import tqdm 
 import argparse
-import matplotlib.pyplot as plt 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn import svm
-from sklearn.datasets import make_classification
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 
+seed = 0
 
-##chose the day over which to carry the calculation
-seed = 1
-d1 = 1
-d2 = 2
-largeur = 300
-data_dir='./data/highschool_data'
+def load_pickles(data_dir,file_names):
+    loaded_objects = []
+    for file_name in file_names:
+        file = open(os.path.join(data_dir,file_name), 'rb')
+        loaded_objects.append(pickle.load(file))
+        file.close()
+    return loaded_objects
 
-file = open(os.path.join(data_dir,'classe'), 'rb')
-classe = pickle.load(file)
-file.close()
-
-file = open(os.path.join(data_dir,'t0'), 'rb')
-t0 = pickle.load(file)
-file.close()
-
-file = open(os.path.join(data_dir,'day_0'), 'rb')
-day_0 = pickle.load(file)
-file.close()
-
-file = open(os.path.join(data_dir,'T_d'), 'rb')
-T_d = pickle.load(file)
-file.close()
-
-file = open(os.path.join(data_dir,'G_t_d'), 'rb')
-G_t_d = pickle.load(file)
-file.close()
-
-file = open(os.path.join(data_dir,'T_uv_d'), 'rb')
-T_uv_d = pickle.load(file)
-file.close()
-
-file = open(os.path.join(data_dir,'E_t_d'), 'rb')
-E_t_d = pickle.load(file)
-file.close()
-
-file = open(os.path.join(data_dir,'snap_to_window_d'), 'rb')
-snap_to_window_d = pickle.load(file)
-file.close()
 
 def main(): 
+
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -91,7 +57,9 @@ def main():
     else : 
         raise Exception("Not a valid type")
 
-    seed = 1
+    file_names = ['classe','t0','day_0','T_d','G_t_d','T_uv_d','E_t_d','snap_to_window_d']
+    classe, t0, day_0, T_d, G_t_d, T_uv_d, E_t_d, snap_to_window_d = load_pickles(data_dir,file_names)
+
     d1 = args.day
     d2 = args.day+1
 
@@ -101,7 +69,9 @@ def main():
         raise Exception("Not a valid day for primary school data set")
     else : 
         for d in range(d1,d2):
-            
+            print(" ")
+            print("Processing "+args.type+" data for day "+str(d))
+            print(" ")
             G_t = G_t_d[d]
             T_uv = T_uv_d[d]
             Temps = sorted(list(T_d[d]))
@@ -124,7 +94,7 @@ def main():
             ItRich_mat=np.zeros((I,J))
             degree_mat=np.zeros((I,J))
             core_mat=np.zeros((I,J))
-
+            core_num_mat=np.zeros((I,J))
 
             ordred_classes=list(set(classe.values()))
             rank=dict()
@@ -154,17 +124,19 @@ def main():
                 core_mat[i]+=np.array([Core_classe_vects[node][snap_to_window[t]]
                             if node in list(set([item for v in E_t[t] for item in v])) else -1 for t in Temps])
 
-
+                core_num_mat[i]+=np.array([Core_num_vects[node][snap_to_window[t]]
+                            if node in list(set([item for v in E_t[t] for item in v])) else -1 for t in Temps])
+                
 
             y = np.array([ordred_classes.index(classe[node]) for node in ranked_nodes])
             Itrich_train, Itrich_test, y_itrich_train, y_itrich_test = train_test_split(ItRich_mat, y, test_size=0.2, random_state=seed)
             degree_train, degree_test, y_degree_train, y_degree_test = train_test_split(degree_mat, y, test_size=0.2, random_state=seed)
             core_train, core_test, y_core_train, y_core_test = train_test_split(core_mat, y, test_size=0.2, random_state=seed)
-
+            core_num_train, core_num_test, y_core_num_train, y_core_num_test = train_test_split(core_num_mat, y, test_size=0.2, random_state=seed)
 
             #clf =  RandomForestClassifier(max_depth=max_depth,n_estimators = nestim, random_state=seed)
             #clf =  svm.SVC()
-            clf = LogisticRegression(random_state=seed, max_iter = 10000)
+            clf = LogisticRegression(random_state = seed, max_iter = 10000)
 
 
             clf_itrich = clf 
@@ -184,10 +156,16 @@ def main():
             y_core_res = clf_itrich.predict(core_test)
             core_accuracy = accuracy_score(y_core_test,y_core_res)
 
+            clf_core_num = clf
+            clf_core_num.fit(core_num_train, y_core_num_train)
+            y_core_num_res = clf_itrich.predict(core_num_test)
+            core_num_accuracy = accuracy_score(y_core_num_test,y_core_num_res)
+
             print("results for day",d)
-            print("accuracy for itrich vect :",itrich_accuracy)
-            print("accuracy for K-core vect :",core_accuracy)
+            print("accuracy for itrich class vect :",itrich_accuracy)
+            print("accuracy for K-core class vect :",core_accuracy)
             print("accuracy for degree vect :",degree_accuracy)
+            print("accuracy for K-core number vect :",core_num_accuracy)
 
 if __name__ == "__main__":
     main()
