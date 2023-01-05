@@ -8,31 +8,36 @@ import argparse
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn import svm
-from sklearn.metrics import accuracy_score, recall_score, precision_score
+from sklearn.metrics import recall_score, precision_score, f1_score
 from sklearn.model_selection import train_test_split
-
+from utils import load_pickles, res_to_str, 
 seed = 0
 
-def load_pickles(data_dir,file_names):
-    loaded_objects = []
-    for file_name in file_names:
-        file = open(os.path.join(data_dir,file_name), 'rb')
-        loaded_objects.append(pickle.load(file))
-        file.close()
-    return loaded_objects
 
 
 def classifier_test(clf,X_train,Y_train,X_test,Y_test):
     clf.fit(X_train, Y_train)
     Y_res = clf.predict(X_test)
-    accuracy = np.round(accuracy_score(Y_test, Y_res),2)
-    recall = np.round(recall_score(Y_test, Y_res, average = "macro"),2)
-    precision = np.round(precision_score(Y_test, Y_res, average = "macro"),2)
-    return (accuracy, recall, precision)
+    f1 = np.round(f1_score(Y_test, Y_res, average = "macro",zero_division=0),2)
+    recall = np.round(recall_score(Y_test, Y_res, average = "macro",zero_division=0),2)
+    precision = np.round(precision_score(Y_test, Y_res, average = "macro",zero_division=0),2)
+    return (f1, recall, precision)
              
+def compute_clf_sats(clf,nclassifier,X,Y,test_size):
+    f1_score_l, recall_l, precision_l = [],[],[]
+    for i in range(nclassifier):
+        X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=test_size, random_state=random.randint(0,10000))
+        f1, recall, precision = classifier_test(clf,X_train,y_train,X_test,y_test)
+        f1_score_l.append(f1)
+        recall_l.append(recall)
+        precision_l.append(precision)
+    res = {"F1-Score": {"Mean":np.round(np.mean(f1_score_l),2),"Std":np.round(np.std(f1_score_l),2)},
+        "Recall": {"Mean":np.round(np.mean(recall_l),2),"Std":np.round(np.std(recall_l),2)},
+        "Precision": {"Mean":np.round(np.mean(precision_l),2),"Std":np.round(np.std(precision_l),2)}}
+    return res
+
 
 def main(): 
-
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -62,6 +67,14 @@ def main():
         default=5,
         type=int,
     )    
+
+    parser.add_argument(
+        "-nc",
+        "--nclassifier",
+        default=25,
+        type=int,
+    )   
+
     parser.add_argument(
         "-th",
         "--threshold",
@@ -98,7 +111,8 @@ def main():
     Nrep = args.nrep
     thresh = args.threshold
     wid = args.width
-    test_size = args.test_size
+    test_size = args.test
+    nclassifier = args.nclassifier
 
     if args.type == "high" and args.day not in range(1,6):
         raise Exception("Not a valid day for highschool data set")
@@ -120,7 +134,7 @@ def main():
             Deg_vects = Vects.get_degree_vecs(classe)
             Core_classe_vects = Vects.get_core_class_vecs(classe,1)
             Core_num_vects = Vects.get_core_number_vecs(classe)
-            Itrich_classe_vects = Vects.get_Itrich_class_vecs(T_uv,classe,thresh,wid,Nrep,seed)
+            Itrich_classe_vects = Vects.get_Itrich_class_vecs(T_uv,classe,thresh,wid,Nrep)
             ####################################################################
             Itrich_node_record_temp = Itrich_classe_vects
             I=len(classe)
@@ -160,28 +174,33 @@ def main():
                 core_num_mat[i]+=np.array([Core_num_vects[node][snap_to_window[t]]
                             if node in list(set([item for v in E_t[t] for item in v])) else -1 for t in Temps])
             ####################################################################
+
+            X_itrich = ItRich_mat
+            X_degree = degree_mat
+            X_core = core_mat
+            X_core_num = core_num_mat
             y = np.array([ordred_classes.index(classe[node]) for node in ranked_nodes])
-            Itrich_train, Itrich_test, y_itrich_train, y_itrich_test = train_test_split(ItRich_mat, y, test_size=test_size, random_state=seed)
-            degree_train, degree_test, y_degree_train, y_degree_test = train_test_split(degree_mat, y, test_size=test_size, random_state=seed)
-            core_train, core_test, y_core_train, y_core_test = train_test_split(core_mat, y, test_size=test_size, random_state=seed)
-            core_num_train, core_num_test, y_core_num_train, y_core_num_test = train_test_split(core_num_mat, y, test_size=test_size, random_state=seed)
 
-            #clf =  RandomForestClassifier(max_depth=max_depth,n_estimators = nestim, random_state=seed)
-            #clf =  svm.SVC()
+            clf1 =  RandomForestClassifier(max_depth=30,n_estimators = 100, random_state=seed)
+            clf2 =  svm.SVC(random_state = seed)
+            clf3 = LogisticRegression(random_state = seed, max_iter = 10000)
+            classifiers = [clf1,clf2,clf3]
+            clf_names = ["Random forest"," Support vector"," Logistic Regression"]
+            print("------------------------------------------------------")
+            for i, clf in enumerate(classifiers):
+                itrich_res = compute_clf_sats(clf,nclassifier,ItRich_mat,y,test_size)
+                degree_res = compute_clf_sats(clf,nclassifier,degree_mat,y,test_size)
+                core_class_res = compute_clf_sats(clf,nclassifier,core_mat,y,test_size)
+                core_num_res = compute_clf_sats(clf,nclassifier,core_num_mat,y,test_size)
 
-            clf = LogisticRegression(random_state = seed, max_iter = 10000)
-            itrich_accuracy, itrich_recall, itrich_precision = classifier_test(clf,Itrich_train,y_itrich_train,Itrich_test,y_itrich_test)
-            degree_accuracy, degree_recall, degree_precision = classifier_test(clf,degree_train,y_degree_train,degree_test,y_degree_test)
-            core_class_accuracy, core_class_recall, core_class_precision = classifier_test(clf,core_train,y_core_train,core_test,y_core_test)
-            core_num_accuracy, core_num_recall, core_num_precision = classifier_test(clf,core_num_train,y_core_num_train,core_num_test,y_core_num_test)
-
-            print(" ")
-            print("Accuracy/Recall/Precision for day",d)
-            print(" " )
-            print("ItRich cls ",itrich_accuracy,itrich_recall,itrich_precision)
-            print("Degree num ",degree_accuracy, degree_recall, degree_precision )
-            print("K-core num ",core_num_accuracy, core_num_recall, core_num_precision )
-            print("K-core cls ",core_class_accuracy, core_class_recall, core_class_precision )
+                print("Classifier :"+clf_names[i]) 
+                print("------------------------------------------------------")
+                print(12*" "+"F1-Score"+4*" "+"Recall"+10*" "+"Precision")
+                print("ItRich cls ",res_to_str(itrich_res))
+                print("Degree num ",res_to_str(degree_res) )
+                print("K-core num ",res_to_str(core_num_res) )
+                print("K-core cls ",res_to_str(core_class_res) )
+                print("------------------------------------------------------")
             ####################################################################
 
 

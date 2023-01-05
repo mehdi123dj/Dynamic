@@ -20,7 +20,7 @@ class Segmentation_temporal:
         self.Qality = dict()
         self.Q_std_dev =dict()
     
-    def process(self,seed,wid,Nrep):
+    def process(self,wid,Nrep):
         sortie=dict()
         u=0
         compare_qual=[]
@@ -152,7 +152,7 @@ class Temporal_vectors:
         G_t[t1]=G
         self.G_t = G_t
 
-    def get_Itrich_class_vecs(self,T_uv,classe,thresh,wid,Nrep,seed):
+    def get_Itrich_class_vecs(self,T_uv,classe,thresh,wid,Nrep):
         
         RC_t=dict()
         D_t=dict()
@@ -164,7 +164,7 @@ class Temporal_vectors:
             t2=t+self.slide
             W=edge_constr_dynamic(T_uv,t,t2)
             segmente_temp=Segmentation_temporal(W)
-            segmente_temp.process(seed,wid,Nrep)
+            segmente_temp.process(wid,Nrep)
             segmente_temp.assemble(thresh)
 
             W_t[t] = W

@@ -142,5 +142,17 @@ def duree(ls,dt):
             len_seq.append(1)
     return len_seq
 
+def load_pickles(data_dir,file_names):
+    loaded_objects = []
+    for file_name in file_names:
+        file = open(os.path.join(data_dir,file_name), 'rb')
+        loaded_objects.append(pickle.load(file))
+        file.close()
+    return loaded_objects
 
 
+def res_to_str(res):
+    s1 = str(res["F1-Score"]["Mean"])+"±"+str(res["F1-Score"]["Std"])
+    s2 = str(res["Recall"]["Mean"])+"±"+str(res["Recall"]["Std"])
+    s3 = str(res["Precision"]["Mean"])+"±"+str(res["Precision"]["Std"])
+    return s1 + '\t' + s2 + '\t' + s3
