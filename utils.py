@@ -9,6 +9,8 @@ import networkx as nx
 import random
 import operator 
 import pandas as pd 
+import os 
+import pickle
 
 def weight_shuffle(G,weights):
     random.shuffle(weights)

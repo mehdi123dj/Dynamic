@@ -10,9 +10,17 @@ from sklearn.linear_model import LogisticRegression
 from sklearn import svm
 from sklearn.metrics import recall_score, precision_score, f1_score
 from sklearn.model_selection import train_test_split
-from utils import load_pickles, res_to_str, 
-seed = 0
+from utils import load_pickles, res_to_str
 
+
+
+def init_classifiers():
+    clf1 =  RandomForestClassifier(max_depth=30,n_estimators = 100, random_state=random.randint(0,10000))
+    clf2 =  svm.SVC(random_state = random.randint(0,10000))
+    clf3 = LogisticRegression(random_state = random.randint(0,10000), max_iter = 10000)
+    clf_names = ["Random forest"," Support vector"," Logistic Regression"]
+
+    return [clf1,clf2,clf3],clf_names
 
 
 def classifier_test(clf,X_train,Y_train,X_test,Y_test):
@@ -132,7 +140,7 @@ def main():
             ####################################################################
             Vects = Temporal_vectors(T_d[d],day_0[d],largeur)
             Deg_vects = Vects.get_degree_vecs(classe)
-            Core_classe_vects = Vects.get_core_class_vecs(classe,1)
+            Core_classe_vects = Vects.get_core_class_vecs(classe,2)
             Core_num_vects = Vects.get_core_number_vecs(classe)
             Itrich_classe_vects = Vects.get_Itrich_class_vecs(T_uv,classe,thresh,wid,Nrep)
             ####################################################################
@@ -175,24 +183,14 @@ def main():
                             if node in list(set([item for v in E_t[t] for item in v])) else -1 for t in Temps])
             ####################################################################
 
-            X_itrich = ItRich_mat
-            X_degree = degree_mat
-            X_core = core_mat
-            X_core_num = core_num_mat
             y = np.array([ordred_classes.index(classe[node]) for node in ranked_nodes])
-
-            clf1 =  RandomForestClassifier(max_depth=30,n_estimators = 100, random_state=seed)
-            clf2 =  svm.SVC(random_state = seed)
-            clf3 = LogisticRegression(random_state = seed, max_iter = 10000)
-            classifiers = [clf1,clf2,clf3]
-            clf_names = ["Random forest"," Support vector"," Logistic Regression"]
+            classifiers,clf_names = init_classifiers()
             print("------------------------------------------------------")
             for i, clf in enumerate(classifiers):
                 itrich_res = compute_clf_sats(clf,nclassifier,ItRich_mat,y,test_size)
                 degree_res = compute_clf_sats(clf,nclassifier,degree_mat,y,test_size)
                 core_class_res = compute_clf_sats(clf,nclassifier,core_mat,y,test_size)
                 core_num_res = compute_clf_sats(clf,nclassifier,core_num_mat,y,test_size)
-
                 print("Classifier :"+clf_names[i]) 
                 print("------------------------------------------------------")
                 print(12*" "+"F1-Score"+4*" "+"Recall"+10*" "+"Precision")
