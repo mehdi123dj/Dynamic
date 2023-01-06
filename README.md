@@ -1,4 +1,4 @@
-This code contains a part of the experiment to be  added/discussed in the paper **Clustering of temporal nodes profiles in dynamic networks of contacts.**
+This code contains a part of the experiment to be  added/discussed in the paper **Clustering of temporal nodes profiles in dynamic networks of contacts.** (https://arxiv.org/abs/2104.05982)
 
 To have them displayed on your terminal : 
 * Download the repository with the datasets present in ./data.
